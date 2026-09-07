@@ -19,6 +19,66 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def load_expenses() -> list[Expense]:
+    """Load expenses from JSON file."""
+    if not DATA_FILE.exists():
+        return []
+
+    try:
+        with DATA_FILE.open("r", encoding="utf-8") as file:
+            data: object = json.load(file)
+
+        if not isinstance(data, list):
+            logger.error("Invalid JSON structure in expenses file")
+            return []
+
+        expenses: list[Expense] = []
+
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+
+            title = item.get("title")
+            amount = item.get("amount")
+            category = item.get("category")
+
+            if (
+                isinstance(title, str)
+                and isinstance(amount, (int, float))
+                and isinstance(category, str)
+            ):
+                expenses.append(
+                    Expense(
+                        title=title,
+                        amount=float(amount),
+                        category=category,
+                    )
+                )
+
+        return expenses
+
+    except (json.JSONDecodeError, OSError) as error:
+        logger.error("Failed to load expenses: %s", error)
+        return []
+
+
+def save_expenses(expenses: list[Expense]) -> None:
+    """Save expenses to JSON file."""
+    data: list[dict[str, str | float]] = [
+        expense.to_dict() for expense in expenses
+    ]
+
+    try:
+        with DATA_FILE.open("w", encoding="utf-8") as file:
+            json.dump(
+                data,
+                file,
+                ensure_ascii=False,
+                indent=4,
+            )
+    except OSError as error:
+        logger.error("Failed to save expenses: %s", error)
+
 
 def add_expense(expenses: list[Expense]) -> None:
     """Add a new expense."""
@@ -56,6 +116,7 @@ def add_expense(expenses: list[Expense]) -> None:
     )
 
     expenses.append(expense)
+    save_expenses(expenses)
 
     logger.info(
         "Expense added: %s, %.2f, %s",
@@ -143,7 +204,7 @@ def main() -> None:
     """Run the application."""
     logger.info("Application started")
 
-    expenses: list[Expense] = []
+    expenses: list[Expense] = load_expenses()
 
     while True:
         show_menu()
@@ -179,7 +240,6 @@ def main() -> None:
                     "Невірний пункт меню. "
                     "Оберіть число від 1 до 5."
                 )
-
 
 
 if __name__ == "__main__":
